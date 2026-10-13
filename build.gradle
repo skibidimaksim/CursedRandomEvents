@@ -11,7 +11,11 @@ base {
     archivesName = 'CursedRandomEvents'
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
 
 neoForge {
     version = '21.11.45'
