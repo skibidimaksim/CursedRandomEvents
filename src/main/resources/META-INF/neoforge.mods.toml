@@ -1,4 +1,3 @@
-
 modLoader="javafml"
 loaderVersion="[1,)"
 license="All Rights Reserved"
@@ -7,7 +6,11 @@ license="All Rights Reserved"
 modId="cursedrandomevents"
 version="1.0.0"
 displayName="Cursed Random Events"
-description='''Random cursed events in Minecraft!'''
+authors="Vexaro, Cursed Studios"
+logoFile="logo.png"
+displayURL="https://github.com/skibidimaksim/CursedRandomEvents"
+description='''A cursed Minecraft mod by Cursed Studios.
+Random events every 30 seconds! Survive unexpected effects, mob attacks, and rare dimension teleports.'''
 
 [[dependencies.cursedrandomevents]]
 modId="neoforge"
