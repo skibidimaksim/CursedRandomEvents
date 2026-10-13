@@ -14,7 +14,7 @@ base {
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 neoForge {
-    version = '21.11.0'
+    version = '21.11.45'
 
     runs {
         client {
