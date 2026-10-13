@@ -4,8 +4,8 @@ package com.skibidimaksim.cursedrandomevents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -24,31 +24,38 @@ public class CursedEventManager {
 
         for (ServerPlayer player :
                 event.getServer().getPlayerList().getPlayers()) {
-            ServerLevel level = player.serverLevel();
+
+            ServerLevel level =
+                event.getServer().getLevel(player.level().dimension());
+
+            if (level == null) continue;
+
             BlockPos pos = player.blockPosition();
 
             switch (RANDOM.nextInt(6)) {
                 case 0 -> {
-                    LightningBolt bolt =
-                        EntityType.LIGHTNING_BOLT.create(level);
+                    var bolt = EntityType.LIGHTNING_BOLT.create(
+                        level, EntitySpawnReason.EVENT
+                    );
                     if (bolt != null) {
-                        bolt.moveTo(
-                            pos.getX() + 2,
+                        bolt.setPos(
+                            pos.getX() + 2.5,
                             pos.getY(),
-                            pos.getZ() + 2
+                            pos.getZ() + 2.5
                         );
                         level.addFreshEntity(bolt);
                     }
                 }
                 case 1 -> {
                     for (int i = 0; i < 5; i++) {
-                        var zombie = EntityType.ZOMBIE.create(level);
+                        var zombie = EntityType.ZOMBIE.create(
+                            level, EntitySpawnReason.EVENT
+                        );
                         if (zombie != null) {
-                            zombie.moveTo(
+                            zombie.setPos(
                                 pos.getX() + RANDOM.nextInt(9) - 4,
-                                pos.getY(),
-                                pos.getZ() + RANDOM.nextInt(9) - 4,
-                                0, 0
+                                pos.getY() + 1,
+                                pos.getZ() + RANDOM.nextInt(9) - 4
                             );
                             level.addFreshEntity(zombie);
                         }
@@ -64,13 +71,14 @@ public class CursedEventManager {
                     ));
                 case 4 -> {
                     for (int i = 0; i < 10; i++) {
-                        var chicken = EntityType.CHICKEN.create(level);
+                        var chicken = EntityType.CHICKEN.create(
+                            level, EntitySpawnReason.EVENT
+                        );
                         if (chicken != null) {
-                            chicken.moveTo(
+                            chicken.setPos(
                                 pos.getX() + RANDOM.nextInt(7) - 3,
                                 pos.getY() + 1,
-                                pos.getZ() + RANDOM.nextInt(7) - 3,
-                                0, 0
+                                pos.getZ() + RANDOM.nextInt(7) - 3
                             );
                             level.addFreshEntity(chicken);
                         }
@@ -78,7 +86,7 @@ public class CursedEventManager {
                 }
                 case 5 ->
                     player.addEffect(new MobEffectInstance(
-                        MobEffects.MOVEMENT_SLOWDOWN, 200, 2
+                        MobEffects.SLOWNESS, 200, 2
                     ));
             }
         }
