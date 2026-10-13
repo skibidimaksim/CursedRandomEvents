@@ -4,6 +4,7 @@ package com.skibidimaksim.cursedrandomevents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -25,16 +26,12 @@ import java.util.UUID;
 public class CursedEventManager {
     private static final Random RANDOM = new Random();
     private static final int EVENT_INTERVAL = 600;
-
     private static int ticks = 0;
 
     private record ReturnPoint(
         ResourceKey<Level> dimension,
-        double x,
-        double y,
-        double z,
-        float yaw,
-        float pitch
+        double x, double y, double z,
+        float yaw, float pitch
     ) {}
 
     private static final Map<UUID, ReturnPoint> RETURN_POINTS =
@@ -67,19 +64,17 @@ public class CursedEventManager {
     }
 
     private void triggerEvent(ServerPlayer player) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
 
-        // Rare dimension events are rolled only in the Overworld.
+        // Roll rare dimension events separately from normal events.
         if (level.dimension().equals(Level.OVERWORLD)) {
             double roll = RANDOM.nextDouble();
 
-            // 0.67%: teleport straight to the Nether.
             if (roll < 0.0067) {
                 teleportToDimension(player, Level.NETHER);
                 return;
             }
 
-            // 0.067%: teleport straight to the End.
             if (roll < 0.00737) {
                 teleportToDimension(player, Level.END);
                 return;
@@ -93,7 +88,6 @@ public class CursedEventManager {
                 var bolt = EntityType.LIGHTNING_BOLT.create(
                     level, EntitySpawnReason.EVENT
                 );
-
                 if (bolt != null) {
                     bolt.setPos(
                         pos.getX() + 2.5,
@@ -103,62 +97,29 @@ public class CursedEventManager {
                     level.addFreshEntity(bolt);
                 }
             }
-
-            case 1 -> spawnMobs(
-                level, EntityType.ZOMBIE, pos, 5
-            );
-
+            case 1 -> spawnMobs(level, EntityType.ZOMBIE, pos, 5);
             case 2 -> player.addEffect(
-                new MobEffectInstance(
-                    MobEffects.BLINDNESS, 200, 0
-                )
+                new MobEffectInstance(MobEffects.BLINDNESS, 200, 0)
             );
-
             case 3 -> player.addEffect(
-                new MobEffectInstance(
-                    MobEffects.LEVITATION, 100, 1
-                )
+                new MobEffectInstance(MobEffects.LEVITATION, 100, 1)
             );
-
-            case 4 -> spawnMobs(
-                level, EntityType.CHICKEN, pos, 10
-            );
-
+            case 4 -> spawnMobs(level, EntityType.CHICKEN, pos, 10);
             case 5 -> player.addEffect(
-                new MobEffectInstance(
-                    MobEffects.SLOWNESS, 200, 2
-                )
+                new MobEffectInstance(MobEffects.SLOWNESS, 200, 2)
             );
-
-            case 6 -> spawnMobs(
-                level, EntityType.PIG, pos, 8
-            );
-
-            case 7 -> spawnMobs(
-                level, EntityType.SPIDER, pos, 5
-            );
-
+            case 6 -> spawnMobs(level, EntityType.PIG, pos, 8);
+            case 7 -> spawnMobs(level, EntityType.SPIDER, pos, 5);
             case 8 -> player.addEffect(
-                new MobEffectInstance(
-                    MobEffects.SPEED, 300, 2
-                )
+                new MobEffectInstance(MobEffects.SPEED, 300, 2)
             );
-
             case 9 -> player.addEffect(
-                new MobEffectInstance(
-                    MobEffects.STRENGTH, 300, 1
-                )
+                new MobEffectInstance(MobEffects.STRENGTH, 300, 1)
             );
-
             case 10 -> player.addEffect(
-                new MobEffectInstance(
-                    MobEffects.JUMP_BOOST, 200, 3
-                )
+                new MobEffectInstance(MobEffects.JUMP_BOOST, 200, 3)
             );
-
-            case 11 -> spawnMobs(
-                level, EntityType.CREEPER, pos, 3
-            );
+            case 11 -> spawnMobs(level, EntityType.CREEPER, pos, 3);
         }
     }
 
@@ -166,27 +127,18 @@ public class CursedEventManager {
             ServerPlayer player,
             ResourceKey<Level> targetDimension) {
 
-        if (player.getServer() == null) {
-            return;
-        }
+        MinecraftServer server = player.level().getServer();
+        if (server == null) return;
 
-        ServerLevel destination =
-            player.getServer().getLevel(targetDimension);
+        ServerLevel destination = server.getLevel(targetDimension);
+        if (destination == null) return;
 
-        if (destination == null) {
-            return;
-        }
-
-        // Remember the original position only once.
         RETURN_POINTS.putIfAbsent(
             player.getUUID(),
             new ReturnPoint(
                 player.level().dimension(),
-                player.getX(),
-                player.getY(),
-                player.getZ(),
-                player.getYRot(),
-                player.getXRot()
+                player.getX(), player.getY(), player.getZ(),
+                player.getYRot(), player.getXRot()
             )
         );
 
@@ -199,10 +151,7 @@ public class CursedEventManager {
             safe = findSafePosition(destination, x, z);
 
             if (safe == null) {
-                BlockPos spawn = destination.getSharedSpawnPos();
-                safe = findSafePosition(
-                    destination, spawn.getX(), spawn.getZ()
-                );
+                safe = findSafePosition(destination, 0, 0);
             }
 
             if (safe == null) {
@@ -210,7 +159,6 @@ public class CursedEventManager {
                 return;
             }
         } else {
-            // Build a small safe obsidian platform in the End.
             safe = new BlockPos(100, 50, 0);
 
             for (int dx = -2; dx <= 2; dx++) {
@@ -219,12 +167,10 @@ public class CursedEventManager {
                         safe.offset(dx, -1, dz),
                         Blocks.OBSIDIAN.defaultBlockState()
                     );
-
                     destination.setBlockAndUpdate(
                         safe.offset(dx, 0, dz),
                         Blocks.AIR.defaultBlockState()
                     );
-
                     destination.setBlockAndUpdate(
                         safe.offset(dx, 1, dz),
                         Blocks.AIR.defaultBlockState()
@@ -240,15 +186,16 @@ public class CursedEventManager {
             safe.getZ() + 0.5,
             Set.of(),
             player.getYRot(),
-            player.getXRot()
+            player.getXRot(),
+            true
         );
 
-        String message = targetDimension.equals(Level.NETHER)
-            ? "§c§lRARE EVENT: WELCOME TO THE NETHER!"
-            : "§5§lULTRA RARE EVENT: WELCOME TO THE END!";
-
         player.displayClientMessage(
-            Component.literal(message),
+            Component.literal(
+                targetDimension.equals(Level.NETHER)
+                    ? "§c§lRARE EVENT: WELCOME TO THE NETHER!"
+                    : "§5§lULTRA RARE EVENT: WELCOME TO THE END!"
+            ),
             false
         );
     }
@@ -259,32 +206,18 @@ public class CursedEventManager {
         for (int radius = 0; radius <= 8; radius++) {
             for (int dx = -radius; dx <= radius; dx++) {
                 for (int dz = -radius; dz <= radius; dz++) {
-                    if (Math.max(Math.abs(dx), Math.abs(dz))
-                            != radius) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) {
                         continue;
                     }
 
                     for (int y = 100; y >= 32; y--) {
-                        BlockPos p = new BlockPos(
-                            x + dx, y, z + dz
-                        );
+                        BlockPos p = new BlockPos(x + dx, y, z + dz);
 
-                        boolean feetAir =
-                            level.getBlockState(p).isAir();
-
-                        boolean headAir =
-                            level.getBlockState(p.above()).isAir();
-
-                        boolean solidFloor =
-                            level.getBlockState(p.below())
-                                .isSolid();
-
-                        boolean dryFloor =
-                            level.getBlockState(p.below())
-                                .getFluidState().isEmpty();
-
-                        if (feetAir && headAir
-                                && solidFloor && dryFloor) {
+                        if (level.getBlockState(p).isAir()
+                                && level.getBlockState(p.above()).isAir()
+                                && level.getBlockState(p.below()).isSolid()
+                                && level.getBlockState(p.below())
+                                    .getFluidState().isEmpty()) {
                             return p;
                         }
                     }
@@ -302,9 +235,7 @@ public class CursedEventManager {
             int count) {
 
         for (int i = 0; i < count; i++) {
-            var mob = type.create(
-                level, EntitySpawnReason.EVENT
-            );
+            var mob = type.create(level, EntitySpawnReason.EVENT);
 
             if (mob != null) {
                 mob.setPos(
@@ -312,7 +243,6 @@ public class CursedEventManager {
                     center.getY() + 1,
                     center.getZ() + RANDOM.nextInt(9) - 4
                 );
-
                 level.addFreshEntity(mob);
             }
         }
@@ -320,32 +250,23 @@ public class CursedEventManager {
 
     @SubscribeEvent
     public void onPlayerRespawn(PlayerRespawnEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) {
-            return;
-        }
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
 
-        ReturnPoint point =
-            RETURN_POINTS.remove(player.getUUID());
+        ReturnPoint point = RETURN_POINTS.remove(player.getUUID());
+        if (point == null) return;
 
-        if (point == null || player.getServer() == null) {
-            return;
-        }
+        MinecraftServer server = player.level().getServer();
+        if (server == null) return;
 
-        ServerLevel destination =
-            player.getServer().getLevel(point.dimension());
-
-        if (destination == null) {
-            return;
-        }
+        ServerLevel destination = server.getLevel(point.dimension());
+        if (destination == null) return;
 
         player.teleportTo(
             destination,
-            point.x(),
-            point.y(),
-            point.z(),
+            point.x(), point.y(), point.z(),
             Set.of(),
-            point.yaw(),
-            point.pitch()
+            point.yaw(), point.pitch(),
+            true
         );
     }
-        }
+}
