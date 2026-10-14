@@ -6,6 +6,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.core.Holder;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -21,7 +23,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -29,15 +30,14 @@ import java.util.Set;
 import java.util.UUID;
 
 public class CursedEventManager {
+
+```
 private static final Random RANDOM = new Random();
 private static final int EVENT_INTERVAL = 600;
 private static int ticks = 0;
 
-```
 private static final Deque<Integer> RECENT_EVENTS = new ArrayDeque<>();
 private static final int MAX_RECENT_EVENTS = 5;
-
-private static final Set<UUID> RETURNING_AFTER_DEATH = new HashSet<>();
 
 private enum Rarity {
     COMMON, RARE, EPIC, LEGENDARY
@@ -65,7 +65,8 @@ private static final Map<UUID, ReturnPoint> RETURN_POINTS =
     new HashMap<>();
 
 private static final List<EventDefinition> EVENTS = List.of(
-    // 1-20: COMMON
+
+    // COMMON: 1-20
     new EventDefinition(1, "Speed Boost", Rarity.COMMON,
         p -> effect(p, MobEffects.SPEED, 300, 1)),
     new EventDefinition(2, "Slowness", Rarity.COMMON,
@@ -107,7 +108,7 @@ private static final List<EventDefinition> EVENTS = List.of(
     new EventDefinition(20, "Regeneration", Rarity.COMMON,
         p -> effect(p, MobEffects.REGENERATION, 160, 1)),
 
-    // 21-35: RARE
+    // RARE: 21-35
     new EventDefinition(21, "Drowned Attack", Rarity.RARE,
         p -> spawn(p, EntityType.DROWNED, 4)),
     new EventDefinition(22, "Stray Attack", Rarity.RARE,
@@ -143,15 +144,12 @@ private static final List<EventDefinition> EVENTS = List.of(
             spawn(p, EntityType.SPIDER, 2);
         }),
 
-    // 36-45: EPIC
+    // EPIC: 36-45
     new EventDefinition(36, "Anvil Storm", Rarity.EPIC,
         p -> {
             effect(p, MobEffects.SLOWNESS, 100, 1);
             spawn(p, EntityType.IRON_GOLEM, 2);
-            p.displayClientMessage(
-                Component.literal("§5Anvil Storm! Iron golems appeared!"),
-                false
-            );
+            message(p, "§5Anvil Storm! Iron golems appeared!");
         }),
     new EventDefinition(37, "Slime King", Rarity.EPIC,
         p -> {
@@ -183,7 +181,7 @@ private static final List<EventDefinition> EVENTS = List.of(
             spawn(p, EntityType.SPIDER, 5);
         }),
 
-    // 46-50: LEGENDARY
+    // LEGENDARY: 46-50
     new EventDefinition(46, "Creeper Apocalypse", Rarity.LEGENDARY,
         p -> spawn(p, EntityType.CREEPER, 10)),
     new EventDefinition(47, "Island of Chaos", Rarity.LEGENDARY,
@@ -244,7 +242,7 @@ public void onServerTick(ServerTickEvent.Post event) {
 private void triggerEvent(ServerPlayer player) {
     ServerLevel level = player.level();
 
-    // Dimension teleports are rolled independently of the 50 events.
+    // Nether: 0.67%; End: 0.067%.
     if (level.dimension().equals(Level.OVERWORLD)) {
         double roll = RANDOM.nextDouble();
 
@@ -260,7 +258,9 @@ private void triggerEvent(ServerPlayer player) {
     }
 
     EventDefinition selected = chooseEvent();
-    if (selected == null) return;
+    if (selected == null) {
+        return;
+    }
 
     rememberEvent(selected.id());
 
@@ -279,11 +279,13 @@ private EventDefinition chooseEvent() {
     List<EventDefinition> available = new ArrayList<>();
 
     for (EventDefinition def : EVENTS) {
-        if (RECENT_EVENTS.contains(def.id())) continue;
+        if (RECENT_EVENTS.contains(def.id())) {
+            continue;
+        }
 
-        // Do not put Speed and Super Jump in consecutive cycles.
+        // Speed and Super Jump cannot occur in consecutive cycles.
         if ((def.id() == 1 || def.id() == 5)
-                && (!RECENT_EVENTS.isEmpty())
+                && !RECENT_EVENTS.isEmpty()
                 && (RECENT_EVENTS.peekLast() == 1
                     || RECENT_EVENTS.peekLast() == 5)) {
             continue;
@@ -297,8 +299,7 @@ private EventDefinition chooseEvent() {
         available.addAll(EVENTS);
     }
 
-    // Category weights: Common 60%, Rare 25%, Epic 14.33%,
-    // Legendary 0.67%. Dimension events are checked separately.
+    // Common 60%, Rare 25%, Epic 14.33%, Legendary 0.67%.
     double roll = RANDOM.nextDouble();
     Rarity chosenRarity;
 
@@ -320,8 +321,6 @@ private EventDefinition chooseEvent() {
         }
     }
 
-    // If the selected category has no eligible event due to anti-repeat,
-    // fall back to another eligible event rather than repeat recent ones.
     if (category.isEmpty()) {
         category = available;
     }
@@ -346,9 +345,13 @@ private static String rarityColor(Rarity rarity) {
     };
 }
 
+private static void message(ServerPlayer player, String text) {
+    player.displayClientMessage(Component.literal(text), false);
+}
+
 private static void effect(
         ServerPlayer player,
-        net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> effect,
+        Holder<MobEffect> effect,
         int duration,
         int amplifier) {
     player.addEffect(new MobEffectInstance(effect, duration, amplifier));
@@ -358,8 +361,12 @@ private static void spawn(
         ServerPlayer player,
         EntityType<?> type,
         int count) {
-    spawnMobs((ServerLevel) player.level(), type,
-        player.blockPosition(), count);
+    spawnMobs(
+        (ServerLevel) player.level(),
+        type,
+        player.blockPosition(),
+        count
+    );
 }
 
 private static void lightning(ServerPlayer player) {
@@ -375,7 +382,11 @@ private static void lightning(ServerPlayer player) {
     );
 
     if (bolt != null) {
-        bolt.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+        bolt.setPos(
+            pos.getX() + 0.5,
+            pos.getY(),
+            pos.getZ() + 0.5
+        );
         level.addFreshEntity(bolt);
     }
 }
@@ -398,13 +409,11 @@ private static void prison(ServerPlayer player) {
     }
 
     level.setBlockAndUpdate(
-        center.below(), Blocks.IRON_BLOCK.defaultBlockState()
+        center.below(),
+        Blocks.IRON_BLOCK.defaultBlockState()
     );
 
-    player.displayClientMessage(
-        Component.literal("§5You have been imprisoned!"),
-        false
-    );
+    message(player, "§5You have been imprisoned!");
 }
 
 private static void fireCircle(ServerPlayer player) {
@@ -413,14 +422,19 @@ private static void fireCircle(ServerPlayer player) {
 
     for (int i = 0; i < 12; i++) {
         double angle = (Math.PI * 2 * i) / 12.0;
-        int x = center.getX() + (int) Math.round(Math.cos(angle) * 4);
-        int z = center.getZ() + (int) Math.round(Math.sin(angle) * 4);
+
+        int x = center.getX()
+            + (int) Math.round(Math.cos(angle) * 4);
+        int z = center.getZ()
+            + (int) Math.round(Math.sin(angle) * 4);
+
         BlockPos firePos = new BlockPos(x, center.getY(), z);
 
         if (level.getBlockState(firePos).isAir()
                 && level.getBlockState(firePos.below()).isSolid()) {
             level.setBlockAndUpdate(
-                firePos, Blocks.FIRE.defaultBlockState()
+                firePos,
+                Blocks.FIRE.defaultBlockState()
             );
         }
     }
@@ -451,21 +465,26 @@ private void teleportToDimension(
         ResourceKey<Level> targetDimension) {
 
     MinecraftServer server = player.level().getServer();
-    if (server == null) return;
+    if (server == null) {
+        return;
+    }
 
     ServerLevel destination = server.getLevel(targetDimension);
-    if (destination == null) return;
+    if (destination == null) {
+        return;
+    }
 
     RETURN_POINTS.putIfAbsent(
         player.getUUID(),
         new ReturnPoint(
             player.level().dimension(),
-            player.getX(), player.getY(), player.getZ(),
-            player.getYRot(), player.getXRot()
+            player.getX(),
+            player.getY(),
+            player.getZ(),
+            player.getYRot(),
+            player.getXRot()
         )
     );
-
-    RETURNING_AFTER_DEATH.add(player.getUUID());
 
     BlockPos safe;
 
@@ -481,7 +500,7 @@ private void teleportToDimension(
 
         if (safe == null) {
             RETURN_POINTS.remove(player.getUUID());
-            RETURNING_AFTER_DEATH.remove(player.getUUID());
+            message(player, "Could not find a safe Nether location!");
             return;
         }
     } else {
@@ -516,18 +535,18 @@ private void teleportToDimension(
         true
     );
 
-    player.displayClientMessage(
-        Component.literal(
-            targetDimension.equals(Level.NETHER)
-                ? "§c§lRARE EVENT: WELCOME TO THE NETHER!"
-                : "§5§lULTRA RARE EVENT: WELCOME TO THE END!"
-        ),
-        false
+    message(
+        player,
+        targetDimension.equals(Level.NETHER)
+            ? "§c§lRARE EVENT: WELCOME TO THE NETHER!"
+            : "§5§lULTRA RARE EVENT: WELCOME TO THE END!"
     );
 }
 
 private BlockPos findSafePosition(
-        ServerLevel level, int x, int z) {
+        ServerLevel level,
+        int x,
+        int z) {
 
     for (int radius = 0; radius <= 8; radius++) {
         for (int dx = -radius; dx <= radius; dx++) {
@@ -537,14 +556,14 @@ private BlockPos findSafePosition(
                 }
 
                 for (int y = 100; y >= 32; y--) {
-                    BlockPos p = new BlockPos(x + dx, y, z + dz);
+                    BlockPos pos = new BlockPos(x + dx, y, z + dz);
 
-                    if (level.getBlockState(p).isAir()
-                            && level.getBlockState(p.above()).isAir()
-                            && level.getBlockState(p.below()).isSolid()
-                            && level.getBlockState(p.below())
+                    if (level.getBlockState(pos).isAir()
+                            && level.getBlockState(pos.above()).isAir()
+                            && level.getBlockState(pos.below()).isSolid()
+                            && level.getBlockState(pos.below())
                                 .getFluidState().isEmpty()) {
-                        return p;
+                        return pos;
                     }
                 }
             }
@@ -556,28 +575,36 @@ private BlockPos findSafePosition(
 
 @SubscribeEvent
 public void onPlayerRespawn(PlayerRespawnEvent event) {
-    if (!(event.getEntity() instanceof ServerPlayer player)) return;
+    if (!(event.getEntity() instanceof ServerPlayer player)) {
+        return;
+    }
 
     ReturnPoint point = RETURN_POINTS.remove(player.getUUID());
-    RETURNING_AFTER_DEATH.remove(player.getUUID());
-
-    if (point == null) return;
+    if (point == null) {
+        return;
+    }
 
     MinecraftServer server = player.level().getServer();
-    if (server == null) return;
+    if (server == null) {
+        return;
+    }
 
     ServerLevel destination = server.getLevel(point.dimension());
-    if (destination == null) return;
+    if (destination == null) {
+        return;
+    }
 
     player.teleportTo(
         destination,
-        point.x(), point.y(), point.z(),
+        point.x(),
+        point.y(),
+        point.z(),
         Set.of(),
-        point.yaw(), point.pitch(),
+        point.yaw(),
+        point.pitch(),
         true
     );
 }
 ```
 
-                        }
-    
+                 }
