@@ -31,7 +31,6 @@ import java.util.UUID;
 
 public class CursedEventManager {
 
-```
 private static final Random RANDOM = new Random();
 private static final int EVENT_INTERVAL = 600;
 private static int ticks = 0;
@@ -605,6 +604,5 @@ public void onPlayerRespawn(PlayerRespawnEvent event) {
         true
     );
 }
-```
 
                  }
