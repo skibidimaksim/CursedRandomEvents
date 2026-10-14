@@ -1,16 +1,21 @@
 modLoader="javafml"
-loaderVersion="[1,)"
+loaderVersion="[4,)"
 license="All Rights Reserved"
 
 [[mods]]
 modId="cursedrandomevents"
-version="1.0.0"
+version="1.0.1"
 displayName="Cursed Random Events"
 authors="Vexaro, Cursed Studios"
+description='''Cursed Random Events — by Cursed Studios.
+
+Random cursed events every 30 seconds!
+50 events with different rarities, unexpected effects,
+mob attacks, and rare dimension teleports.
+
+Created by Vexaro and Cursed Studios.'''
+
 logoFile="logo.png"
-displayURL="https://github.com/skibidimaksim/CursedRandomEvents"
-description='''A cursed Minecraft mod by Cursed Studios.
-Random events every 30 seconds! Survive unexpected effects, mob attacks, and rare dimension teleports.'''
 
 [[dependencies.cursedrandomevents]]
 modId="neoforge"
